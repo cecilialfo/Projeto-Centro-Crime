@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ocorrências do Projeto Centro | Painel de BOs no 3º e 77º DP de São Paulo</title>
+<meta name="description" content="Painel interativo com os boletins de ocorrência semanais do Projeto Centro: furtos e roubos registrados no 3º DP (Campos Elíseos) e no 77º DP (Santa Cecília), centro de São Paulo, por semana, tipo de crime, horário e endereço.">
+<meta property="og:title" content="Ocorrências do Projeto Centro">
+<meta property="og:description" content="Furtos e roubos no 3º DP (Campos Elíseos) e no 77º DP (Santa Cecília), centro de São Paulo, semana a semana.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --color-bg: #f6f7f5; --color-panel: #ffffff; --color-fg: #1d2421; --color-fg-muted: #5c6662;
+  --color-border-line: #dde2df; --color-bad: #b42318;
+  --s1: #1f6f8b; --s2: #c2412d; --s3: #7a5195; --s4: #3d8b5a;
+  --cds-chart-muted: #a7b0ac; --cds-chart-grid: #eceeed; --cds-chart-axis: #b9c0bd;
+  --cds-surface-popover: #ffffff; --cds-border: #dde2df; --cds-shadow-popover: 0 4px 16px rgb(20 30 25 / .12);
+  --cds-text-secondary: #5c6662;
+  --font-anthropic-sans: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-anthropic-serif: "Source Serif 4", Georgia, serif;
+  --cds-font-size-caption: .8125rem; --cds-font-size-body: .9375rem; --cds-font-size-heading: 1.0625rem; --cds-font-size-title: 1.875rem;
+  --cds-font-weight-medium: 600;
+  --cds-gap-xs: .25rem; --cds-gap-sm: .5rem; --cds-gap-md: 1rem; --cds-gap-lg: 1.5rem; --cds-gap-xl: 2.5rem;
+  --cds-pad-xs: .3rem; --cds-pad-sm: .6rem; --cds-pad-md: .9rem; --cds-pad-lg: 1.25rem;
+  --cds-radius: 8px; --cds-dur-slow: .3s;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-bg: #131816; --color-panel: #1b211e; --color-fg: #e6ebe8; --color-fg-muted: #9aa5a0;
+    --color-border-line: #2c3430; --color-bad: #f97066;
+    --s1: #5fb3cf; --s2: #f08a6f; --s3: #b48fd1; --s4: #7cc796;
+    --cds-chart-muted: #5d6763; --cds-chart-grid: #252c29; --cds-chart-axis: #3e4743;
+    --cds-surface-popover: #232a27; --cds-border: #353e3a; --cds-shadow-popover: 0 4px 16px rgb(0 0 0 / .45);
+    --cds-text-secondary: #9aa5a0;
+  }
+}
+html, body { margin: 0; background: var(--color-bg); color: var(--color-fg); }
+body { font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-body); }
+main { max-width: 76rem; margin-inline: auto; padding-block: 2rem 3rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+[hidden] { display: none !important; }
+.dash-skeleton { color: transparent !important; background: var(--cds-chart-grid); border-radius: 4px; min-width: 3rem; display: inline-block; }
+
+.pc { font-family: var(--font-anthropic-sans); color: var(--color-fg); display: flex; flex-direction: column; gap: var(--cds-gap-lg); }
+.pc h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+.pc-take { margin: var(--cds-gap-xs) 0 0; color: var(--color-fg-muted); font-size: var(--cds-font-size-body); max-width: 72ch; line-height: 1.5; }
+.pc-filters { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: flex-end; }
+.pc-field { display: flex; flex-direction: column; gap: var(--cds-gap-xs); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); min-width: 0; }
+.pc-field select, .pc-search, .pc-btn {
+  font: inherit; font-size: var(--cds-font-size-body); color: var(--color-fg); background: var(--color-panel);
+  border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-xs) var(--cds-pad-sm); max-width: 100%;
+}
+.pc-field.wide select { width: 20rem; }
+.pc-btn { cursor: pointer; }
+.pc-btn:hover { border-color: var(--color-fg-muted); }
+.pc-btn:focus-visible, .pc-field select:focus-visible, .pc-search:focus-visible, .pc-seg button:focus-visible, .pc-rk-row:focus-visible, .pc-th:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 1px; }
+.pc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr)); gap: var(--cds-gap-md); }
+.pc-kpi, .pc-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
+.pc-kpi { display: flex; flex-direction: column; gap: var(--cds-gap-xs); }
+.pc-kpi .lb { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.pc-kpi .v { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.pc-kpi .sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.pc-card { position: relative; }
+.pc-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+.pc-note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: var(--cds-gap-xs) 0 var(--cds-gap-md); line-height: 1.45; }
+.pc-cardhead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: var(--cds-gap-sm); }
+.pc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: var(--cds-gap-md); }
+.pc-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
+.pc-seg button { font: inherit; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); background: transparent; border: 0; padding: var(--cds-pad-xs) var(--cds-pad-sm); cursor: pointer; }
+.pc-seg button[aria-pressed="true"] { background: var(--color-bg); color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+.pc-legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-bottom: var(--cds-gap-sm); }
+.pc-legend span { display: inline-flex; align-items: center; gap: var(--cds-gap-xs); }
+.pc-sw { width: 0.625rem; height: 0.625rem; border-radius: 2px; display: inline-block; flex: none; }
+.pc-chart { min-height: 260px; }
+.pc-heat { min-height: 220px; }
+.pc-chart svg text, .pc-heat svg text { fill: var(--color-fg-muted); font-size: var(--cds-font-size-caption); font-family: var(--font-anthropic-sans); }
+.pc-tip { position: absolute; z-index: 5; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); display: flex; flex-direction: column; gap: 2px; min-width: 9rem; max-width: 18rem; }
+.pc-tip .t { color: var(--cds-text-secondary); }
+.pc-tip .l { display: flex; align-items: center; gap: var(--cds-gap-xs); font-variant-numeric: tabular-nums; }
+.pc-tip .l b { margin-left: auto; font-weight: var(--cds-font-weight-medium); padding-left: var(--cds-gap-sm); }
+.pc-rk { display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-height: 200px; }
+.pc-rk-row { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--cds-gap-sm); align-items: center; font-size: var(--cds-font-size-caption); background: none; border: 0; padding: 0; color: inherit; font-family: inherit; text-align: left; }
+button.pc-rk-row { cursor: pointer; }
+button.pc-rk-row:hover .pc-rk-bar { opacity: .8; }
+.pc-rk-lb { grid-column: 1 / -1; color: var(--color-fg); overflow-wrap: anywhere; }
+.pc-rk-track { height: 0.625rem; }
+.pc-rk-bar { height: 100%; border-radius: 4px; background: var(--cds-chart-muted); min-width: 2px; }
+.pc-rk-v { color: var(--color-fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pc-more { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.pc-tblwrap { max-height: 28rem; overflow: auto; border-top: 1px solid var(--color-border-line); }
+.pc-tbl { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+.pc-tbl th { position: sticky; top: 0; background: var(--color-panel); text-align: left; font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+.pc-tbl td { padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); vertical-align: top; }
+.pc-tbl td.n, .pc-tbl th.n { text-align: right; }
+#bo-tbl td:first-child { white-space: nowrap; }
+.pc-th { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.pc-th[aria-sort="ascending"]::after { content: " ↑"; }
+.pc-th[aria-sort="descending"]::after { content: " ↓"; }
+.pc-tools { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; justify-content: space-between; margin-bottom: var(--cds-gap-sm); }
+.pc-search { width: 18rem; }
+.pc-count { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.pc-chk { display: inline-flex; align-items: center; gap: var(--cds-gap-xs); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); cursor: pointer; }
+.pc-fail { display: flex; align-items: center; justify-content: center; gap: var(--cds-gap-xs); min-height: 200px; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.pc-fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+.pc-foot { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.5; max-width: 80ch; display: flex; flex-direction: column; gap: var(--cds-gap-xs); }
+.pc-foot p { margin: 0; }
+.pc-lg-row { cursor: pointer; }
+.pc-lg-row:hover td { background: var(--color-bg); }
+.pc-lg-row.open td { background: var(--color-bg); border-bottom-color: transparent; }
+.pc-lg-btn { font: inherit; color: var(--color-fg); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; display: inline-flex; gap: var(--cds-gap-xs); align-items: baseline; }
+.pc-lg-btn::before { content: "▸"; color: var(--color-fg-muted); font-size: .8em; }
+.pc-lg-row.open .pc-lg-btn::before { content: "▾"; }
+.pc-lg-btn:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 1px; }
+.pc-det td { background: var(--color-bg); padding: var(--cds-pad-sm) var(--cds-pad-md) var(--cds-pad-md); }
+.pc-det-lead { font-size: var(--cds-font-size-body); margin: 0 0 var(--cds-gap-sm); line-height: 1.45; max-width: 70ch; }
+.pc-det-nat { display: flex; height: 0.625rem; border-radius: 4px; overflow: hidden; margin-bottom: var(--cds-gap-xs); max-width: 28rem; }
+.pc-det-natleg { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); color: var(--color-fg-muted); margin-bottom: var(--cds-gap-md); }
+.pc-det-natleg span { display: inline-flex; align-items: center; gap: var(--cds-gap-xs); font-variant-numeric: tabular-nums; }
+.pc-det-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--cds-gap-md); }
+.pc-det-grid h3 { font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); margin: 0 0 var(--cds-gap-xs); }
+.pc-det-grid ol { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 2px; }
+.pc-det-grid li span { color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+.pc-det-act { margin-top: var(--cds-gap-md); }
+[data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+[data-dash-source-state=empty] { color: transparent; }
+@media (max-width: 40rem) { .pc-field.wide select, .pc-search { width: 100%; } .pc-field.wide { flex: 1 1 100%; } }
+
+</style>
+</head>
+<body>
+<main>
+
+
+<div class="pc">
+  <header id="topo">
+    <h1>Ocorrências do Projeto Centro</h1>
+    <p class="pc-take dash-skeleton" data-source="bos">—</p>
+  </header>
+
+  <div class="pc-filters" id="filtros" data-source="bos">
+    <label class="pc-field">Ano<select id="f-ano"></select></label>
+    <label class="pc-field">Delegacia<select id="f-dp"></select></label>
+    <label class="pc-field">Natureza<select id="f-classif"></select></label>
+    <label class="pc-field wide">Tipo de crime<select id="f-tipo"></select></label>
+    <label class="pc-field">Da semana<select id="f-de"></select></label>
+    <label class="pc-field">Até a semana<select id="f-ate"></select></label>
+    <button class="pc-btn" id="f-reset" type="button">Limpar filtros</button>
+  </div>
+
+  <section class="pc-kpis" id="indicadores" data-source="bos">
+    <div class="pc-kpi"><span class="lb">BOs registrados</span><span class="v dash-skeleton" id="k-total">—</span><span class="sub" id="k-total-s"></span></div>
+    <div class="pc-kpi"><span class="lb">Média por semana</span><span class="v dash-skeleton" id="k-media">—</span><span class="sub" id="k-media-s"></span></div>
+    <div class="pc-kpi"><span class="lb">Roubos</span><span class="v dash-skeleton" id="k-roubo">—</span><span class="sub" id="k-roubo-s"></span></div>
+    <div class="pc-kpi"><span class="lb">Celular entre os objetos levados</span><span class="v dash-skeleton" id="k-cel">—</span><span class="sub" id="k-cel-s"></span></div>
+    <div class="pc-kpi"><span class="lb">Semana com mais BOs</span><span class="v dash-skeleton" id="k-pico">—</span><span class="sub" id="k-pico-s"></span></div>
+  </section>
+
+  <div class="pc-card" id="semanal" data-source="bos">
+    <div class="pc-cardhead">
+      <div>
+        <h2>BOs por semana</h2>
+        <p class="pc-note">Semana do boletim em que o BO foi listado. Passe o mouse sobre uma barra para ver as datas.</p>
+      </div>
+      <div class="pc-seg" role="group" aria-label="Separar barras por">
+        <button type="button" data-quebra="CLASSIFICACAO" aria-pressed="true">Por natureza</button>
+        <button type="button" data-quebra="DP" aria-pressed="false">Por delegacia</button>
+      </div>
+    </div>
+    <div class="pc-legend" id="semanal-leg"></div>
+    <div class="pc-chart" id="semanal-chart"></div>
+    <div class="pc-tip" hidden></div>
+  </div>
+
+  <div class="pc-grid">
+    <div class="pc-card" id="perfil" data-source="bos">
+      <div class="pc-cardhead">
+        <div>
+          <h2>Perfil das ocorrências</h2>
+          <p class="pc-note" id="perfil-note">As 12 categorias mais frequentes, com a parcela de cada uma no total filtrado.</p>
+        </div>
+      </div>
+      <div class="pc-tools">
+        <label class="pc-field">Ver por<select id="perfil-dim"></select></label>
+        <label class="pc-chk"><input type="checkbox" id="perfil-ni" checked> Ocultar “não informado”</label>
+      </div>
+      <div class="pc-rk" id="perfil-list"></div>
+    </div>
+
+    <div class="pc-card" id="horario" data-source="bos">
+      <h2>Dia e hora da ocorrência</h2>
+      <p class="pc-note">Quanto mais escura a célula, mais BOs naquele dia da semana e faixa de hora. Usa a data e a hora do fato, não do registro.</p>
+      <div class="pc-heat" id="horario-chart"></div>
+      <div class="pc-tip" hidden></div>
+    </div>
+  </div>
+
+  <div class="pc-card" id="logradouros" data-source="bos">
+    <h2>Logradouros com mais ocorrências</h2>
+    <p class="pc-note">Os 15 endereços com mais BOs no recorte filtrado. Clique num endereço para ver o que mais acontece ali: natureza, tipo de crime, forma de abordagem, objetos levados e horário.</p>
+    <div class="pc-tblwrap">
+      <table class="pc-tbl" id="logr-tbl">
+        <thead><tr><th>Logradouro</th><th>Bairro mais comum</th><th class="n">BOs</th><th class="n">% roubo</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="pc-card" id="lista">
+    <h2>Lista de BOs</h2>
+    <p class="pc-note">Os BOs do recorte filtrado. Busque por número, rua, bairro ou tipo de crime. Clique num cabeçalho para ordenar.</p>
+    <div class="pc-tools">
+      <input class="pc-search" id="busca" type="search" placeholder="Buscar na lista" aria-label="Buscar na lista de BOs">
+      <span class="pc-count" id="lista-count" data-source="bos"></span>
+    </div>
+    <div class="pc-tblwrap">
+      <table class="pc-tbl" id="bo-tbl" data-source="bos" data-row-key="ID">
+        <thead><tr>
+          <th data-field="DATA"><button class="pc-th" type="button" data-sort="DATA" aria-sort="descending">Data</button></th>
+          <th data-field="NUM_BO"><button class="pc-th" type="button" data-sort="NUM_BO">BO</button></th>
+          <th data-field="DP"><button class="pc-th" type="button" data-sort="DP">Delegacia</button></th>
+          <th data-field="CLASSIFICACAO"><button class="pc-th" type="button" data-sort="CLASSIFICACAO">Natureza</button></th>
+          <th data-field="TIPO_CRIME"><button class="pc-th" type="button" data-sort="TIPO_CRIME">Tipo de crime</button></th>
+          <th data-field="OBJETO"><button class="pc-th" type="button" data-sort="OBJETO">Objeto</button></th>
+          <th data-field="LOGRADOURO"><button class="pc-th" type="button" data-sort="LOGRADOURO">Logradouro</button></th>
+          <th data-field="BAIRRO"><button class="pc-th" type="button" data-sort="BAIRRO">Bairro</button></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer class="pc-foot" id="notas">
+    <p><b>Sobre os dados.</b> Painel atualizado com as semanas disponíveis na base. Boletins semanais do Projeto Centro: um BO por linha, com circunscrição no 3º DP (Campos Elíseos) ou no 77º DP (Santa Cecília). Alguns poucos BOs aparecem com circunscrição em outra DP e estão em “Outra DP”.</p>
+    <p><b>Natureza.</b> “Furto” e “Roubo” seguem a classificação final da planilha. “Outros” reúne BOs marcados como “não se trata de roubo ou furto”, saques ou movimentações não autorizadas e crimes tentados.</p>
+    <p><b>Tratamento.</b> Na planilha da semana 6, uma coluna de histórico sem cabeçalho deslocava período, tipo de local e tipo de crime; isso foi corrigido. Grafias diferentes da mesma categoria foram unificadas, e campos vazios aparecem como “não informado”.</p>
+  </footer>
+</div>
+
+
+</main>
+<script>
+// ====== Lista de bases. Para incluir outro ano: coloque o CSV na pasta "dados" e acrescente o nome aqui. ======
+const ARQUIVOS = ['dados/base_2024.csv'];
+
+window.dash = (() => {
+  const DEFAULTS = { ano: null, dp: null, classif: null, tipo: null, de: null, ate: null };
+  let state = { status: 'loading', data: [] }, params = { ...DEFAULTS };
+  const fns = [];
+  const run = () => fns.forEach((f) => f());
+  let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(run, 150); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', run);
+  Promise.all(ARQUIVOS.map((f) => d3.csv(f)))
+    .then((partes) => { state = { status: 'ok', data: partes.flat() }; run(); })
+    .catch(() => { state = { status: 'error', data: [] }; run(); });
+  return {
+    get colors() { const cs = getComputedStyle(document.documentElement); return ['--s1', '--s2', '--s3', '--s4'].map((v) => cs.getPropertyValue(v).trim()); },
+    data: () => state,
+    params: () => ({ ...params }),
+    setParams(o) { Object.assign(params, o); run(); },
+    resetParams() { params = { ...DEFAULTS }; run(); },
+    onData(fn) { fns.push(fn); fn(); },
+  };
+})();
+</script>
+<script>
+(() => {
+  const nf = new Intl.NumberFormat('pt-BR');
+  const nf1 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
+  const pf = (v) => new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 }).format(v);
+  const dm = (s) => (s ? s.slice(8, 10) + '/' + s.slice(5, 7) : '');
+  const dmy = (s) => (s ? dm(s) + '/' + s.slice(0, 4) : '');
+  const MIN = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'em']);
+  const title = (s) => (s || '').toLowerCase().split(' ').map((w, i) => (i > 0 && MIN.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
+  const sent = (s) => (s ? s.charAt(0) + s.slice(1).toLowerCase() : s);
+  const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const ORDEM = [1, 2, 3, 4, 5, 6, 0];
+  const DIMS = { TIPO_CRIME: 'Tipo de crime', OBJETO: 'Objeto visado', MODUS: 'Modus operandi', MEIO: 'Meio de locomoção do autor', LOCAL_SUBTRACAO: 'De onde o objeto foi levado', TIPO_LOCAL: 'Tipo de local', BAIRRO: 'Bairro', APRESENTACAO: 'Quem levou o caso à delegacia' };
+  const CLASSES = ['Furto', 'Roubo', 'Outros'];
+  const NI = /^N[AÃ]O INFORMADO$/;
+  const ui = { quebra: 'CLASSIFICACAO', dim: 'TIPO_CRIME', semNI: true, busca: '', sortKey: 'DATA', sortDir: -1, logr: null };
+  const $ = (id) => document.getElementById(id);
+
+  let src = null, all = [];
+  const prep = (data) => {
+    if (data === src) return all;
+    src = data;
+    all = data.map((r) => ({
+      ...r, ano: +r.ANO, sem: +r.SEMANA,
+      hora: r.HORA === '' || r.HORA == null ? null : Math.floor(+r.HORA),
+      dow: r.DATA ? new Date(r.DATA + 'T12:00:00Z').getUTCDay() : null,
+      nat: r.CLASSIFICACAO === 'FURTO' ? 'Furto' : r.CLASSIFICACAO === 'ROUBO' ? 'Roubo' : 'Outros',
+    }));
+    return all;
+  };
+
+  // ---------- filtros ----------
+  const P = () => dash.params();
+  const set = (k, v) => dash.setParams({ [k]: v === '' || v == null ? null : v });
+  const fill = (sel, opts, val) => {
+    const sig = opts.map((o) => o[0] + '|' + o[1]).join('§');
+    if (sel.dataset.sig !== sig) { sel.replaceChildren(...opts.map(([v, t]) => new Option(t, v))); sel.dataset.sig = sig; }
+    sel.value = val == null ? '' : String(val);
+  };
+  $('f-ano').addEventListener('change', (e) => dash.setParams({ ano: e.target.value ? +e.target.value : null, de: null, ate: null }));
+  $('f-dp').addEventListener('change', (e) => set('dp', e.target.value));
+  $('f-classif').addEventListener('change', (e) => set('classif', e.target.value));
+  $('f-tipo').addEventListener('change', (e) => set('tipo', e.target.value));
+  $('f-de').addEventListener('change', (e) => set('de', e.target.value ? +e.target.value : null));
+  $('f-ate').addEventListener('change', (e) => set('ate', e.target.value ? +e.target.value : null));
+  $('f-reset').addEventListener('click', () => dash.resetParams());
+
+  document.querySelectorAll('[data-quebra]').forEach((b) => b.addEventListener('click', () => {
+    ui.quebra = b.dataset.quebra;
+    document.querySelectorAll('[data-quebra]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    draw();
+  }));
+  const dimSel = $('perfil-dim');
+  dimSel.replaceChildren(...Object.entries(DIMS).map(([v, t]) => new Option(t, v)));
+  dimSel.addEventListener('change', () => { ui.dim = dimSel.value; draw(); });
+  $('perfil-ni').addEventListener('change', (e) => { ui.semNI = e.target.checked; draw(); });
+  $('busca').addEventListener('input', (e) => { ui.busca = e.target.value; drawTable(); });
+  document.querySelectorAll('.pc-th').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.sort;
+    ui.sortDir = ui.sortKey === k ? -ui.sortDir : (k === 'DATA' ? -1 : 1);
+    ui.sortKey = k;
+    document.querySelectorAll('.pc-th').forEach((x) => (x === b ? x.setAttribute('aria-sort', ui.sortDir < 0 ? 'descending' : 'ascending') : x.removeAttribute('aria-sort')));
+    drawTable();
+  }));
+
+  // ---------- tooltip ----------
+  const line = (text, val, color) => {
+    const d = document.createElement('div'); d.className = 'l';
+    if (color) { const s = document.createElement('span'); s.className = 'pc-sw'; s.style.background = color; d.append(s); }
+    const t = document.createElement('span'); t.textContent = text; d.append(t);
+    if (val != null) { const b = document.createElement('b'); b.textContent = val; d.append(b); }
+    return d;
+  };
+  const head = (text) => { const d = document.createElement('div'); d.className = 't'; d.textContent = text; return d; };
+  const showTip = (card, nodes, evt) => {
+    const t = card.querySelector('.pc-tip');
+    t.replaceChildren(...nodes); t.hidden = false;
+    const cr = card.getBoundingClientRect();
+    let x = evt.clientX - cr.left + 14, y = evt.clientY - cr.top + 14;
+    if (x + t.offsetWidth > cr.width - 8) x = evt.clientX - cr.left - t.offsetWidth - 14;
+    t.style.left = Math.max(8, x) + 'px'; t.style.top = y + 'px';
+  };
+  const hideTip = (card) => { card.querySelector('.pc-tip').hidden = true; };
+
+  const measure = (svg, texts) => {
+    const g = svg.append('g');
+    const w = d3.max(texts, (s) => g.append('text').text(s).node().getComputedTextLength()) || 0;
+    g.remove(); return w;
+  };
+
+  // ---------- estado ----------
+  let filtered = [], weeks = [];
+  const failEl = (el) => { el.replaceChildren(); const d = document.createElement('div'); d.className = 'pc-fail'; d.textContent = 'Não carregou'; el.append(d); };
+
+  function draw() {
+    const res = dash.data('bos');
+    const skel = document.querySelectorAll('.dash-skeleton');
+    if (res.status !== 'ok') {
+      if (res.status === 'error' || res.status === 'missing') {
+        skel.forEach((e) => e.classList.remove('dash-skeleton'));
+        ['semanal-chart', 'horario-chart', 'perfil-list'].forEach((id) => failEl($(id)));
+      }
+      return;
+    }
+    skel.forEach((e) => e.classList.remove('dash-skeleton'));
+    const rows = prep(res.data);
+    const p = P();
+
+    // opções dos filtros
+    const anos = [...new Set(rows.map((r) => r.ano))].sort();
+    fill($('f-ano'), [['', anos.length > 1 ? 'Todos' : 'Todos (' + anos.join(', ') + ')'], ...anos.map((a) => [String(a), String(a)])], p.ano);
+    const dps = [...new Set(rows.map((r) => r.DP))].sort((a, b) => parseInt(a) - parseInt(b) || a.localeCompare(b));
+    fill($('f-dp'), [['', 'Todas'], ...dps.map((d) => [d, d])], p.dp);
+    fill($('f-classif'), [['', 'Todas'], ...CLASSES.map((c) => [c, c])], p.classif);
+    const tipos = [...new Set(rows.map((r) => r.TIPO_CRIME))].sort();
+    fill($('f-tipo'), [['', 'Todos'], ...tipos.map((t) => [t, sent(t)])], p.tipo);
+
+    const doAno = rows.filter((r) => p.ano == null || r.ano === +p.ano);
+    const wk = new Map();
+    doAno.forEach((r) => { const k = r.ano + '-' + r.sem; if (!wk.has(k)) wk.set(k, { key: k, ano: r.ano, sem: r.sem, ini: r.SEMANA_INICIO, fim: r.SEMANA_FIM }); });
+    const allWeeks = [...wk.values()].sort((a, b) => a.ano - b.ano || a.sem - b.sem);
+    const multi = new Set(allWeeks.map((w) => w.ano)).size > 1;
+    const semOpts = [...new Map(allWeeks.map((w) => [w.sem, w])).values()].sort((a, b) => a.sem - b.sem)
+      .map((w) => [String(w.sem), multi ? 'Semana ' + w.sem : 'S' + w.sem + ' · ' + dm(w.ini) + ' a ' + dm(w.fim)]);
+    fill($('f-de'), [['', 'Primeira'], ...semOpts], p.de);
+    fill($('f-ate'), [['', 'Última'], ...semOpts], p.ate);
+
+    const inRange = (s) => (p.de == null || s >= +p.de) && (p.ate == null || s <= +p.ate);
+    weeks = allWeeks.filter((w) => inRange(w.sem));
+    filtered = doAno.filter((r) => inRange(r.sem) && (p.dp == null || r.DP === p.dp) && (p.classif == null || r.nat === p.classif) && (p.tipo == null || r.TIPO_CRIME === p.tipo));
+
+    drawKpis(multi);
+    drawWeekly(multi);
+    drawPerfil();
+    drawHeat();
+    drawLogr();
+    drawTable();
+  }
+
+  function weekCounts() {
+    const m = new Map(weeks.map((w) => [w.key, 0]));
+    filtered.forEach((r) => { const k = r.ano + '-' + r.sem; if (m.has(k)) m.set(k, m.get(k) + 1); });
+    return m;
+  }
+  const wkLabel = (w, multi) => (multi ? w.ano + ' · ' : '') + 'semana ' + w.sem + ' (' + dm(w.ini) + ' a ' + dm(w.fim) + ')';
+
+  function drawKpis(multi) {
+    const n = filtered.length, nw = weeks.length || 1;
+    const roubo = filtered.filter((r) => r.nat === 'Roubo').length;
+    const cel = filtered.filter((r) => /CELULAR/.test(r.OBJETO || '')).length;
+    const wc = weekCounts();
+    const pico = weeks.reduce((best, w) => (wc.get(w.key) > (best ? wc.get(best.key) : -1) ? w : best), null);
+    const per = weeks.length ? dmy(weeks[0].ini) + ' a ' + dmy(weeks[weeks.length - 1].fim) : '';
+    $('k-total').textContent = nf.format(n);
+    $('k-total-s').textContent = per;
+    $('k-media').textContent = nf1.format(n / nw);
+    $('k-media-s').textContent = nf.format(weeks.length) + (weeks.length === 1 ? ' semana' : ' semanas');
+    $('k-roubo').textContent = n ? pf(roubo / n) : '—';
+    $('k-roubo-s').textContent = nf.format(roubo) + ' BOs';
+    $('k-cel').textContent = n ? pf(cel / n) : '—';
+    $('k-cel-s').textContent = nf.format(cel) + ' BOs com celular';
+    $('k-pico').textContent = pico && n ? nf.format(wc.get(pico.key)) : '—';
+    $('k-pico-s').textContent = pico && n ? wkLabel(pico, multi) : '';
+
+    const take = document.querySelector('.pc-take');
+    if (!n) { take.textContent = 'Nenhum BO no recorte filtrado.'; return; }
+    take.textContent = nf.format(n) + ' BOs registrados de ' + per + ', média de ' + nf1.format(n / nw) + ' por semana. '
+      + pf(roubo / n) + ' foram roubos, e em ' + pf(cel / n) + ' dos casos um celular estava entre os objetos levados. '
+      + 'O pico foi na ' + wkLabel(pico, multi) + ', com ' + nf.format(wc.get(pico.key)) + ' registros.';
+  }
+
+  function drawWeekly(multi) {
+    const el = $('semanal-chart'), card = $('semanal');
+    const W = el.clientWidth; if (!W) return;
+    const groups = ui.quebra === 'CLASSIFICACAO' ? CLASSES : [...new Set(all.map((r) => r.DP))].sort((a, b) => parseInt(a) - parseInt(b) || a.localeCompare(b));
+    const gk = ui.quebra === 'CLASSIFICACAO' ? (r) => r.nat : (r) => r.DP;
+    const color = (g) => (/^Outr/.test(g) ? getComputedStyle(document.documentElement).getPropertyValue('--cds-chart-muted').trim() : dash.colors[groups.indexOf(g)]);
+    const byW = new Map(weeks.map((w) => [w.key, Object.assign({ ...w }, Object.fromEntries(groups.map((g) => [g, 0])))]));
+    filtered.forEach((r) => { const o = byW.get(r.ano + '-' + r.sem); if (o) o[gk(r)]++; });
+    const data = [...byW.values()];
+    data.forEach((d) => (d.total = d3.sum(groups, (g) => d[g])));
+    const used = groups.filter((g) => d3.sum(data, (d) => d[g]) > 0);
+
+    const leg = $('semanal-leg');
+    leg.replaceChildren(...used.map((g) => { const s = document.createElement('span'); const sw = document.createElement('i'); sw.className = 'pc-sw'; sw.style.background = color(g); s.append(sw, document.createTextNode(g)); return s; }));
+
+    const H = 260, mt = 8, mb = 26;
+    el.replaceChildren();
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'BOs por semana');
+    const yMax = d3.max(data, (d) => d.total) || 1;
+    const y = d3.scaleLinear([0, yMax], [H - mb, mt]).nice();
+    const ticks = y.ticks(4);
+    const ml = Math.ceil(measure(svg, ticks.map((t) => nf.format(t)))) + 10;
+    const x = d3.scaleBand(data.map((d) => d.key), [ml, W - 4]).padding(0.22);
+
+    svg.append('g').selectAll('line').data(ticks).join('line')
+      .attr('x1', ml).attr('x2', W - 4).attr('y1', (t) => y(t)).attr('y2', (t) => y(t))
+      .attr('stroke', (t) => (t === 0 ? getComputedStyle(document.documentElement).getPropertyValue('--cds-chart-axis').trim() : getComputedStyle(document.documentElement).getPropertyValue('--cds-chart-grid').trim())).attr('stroke-width', 1);
+    svg.append('g').selectAll('text').data(ticks).join('text')
+      .attr('x', ml - 8).attr('y', (t) => y(t)).attr('dy', '0.32em').attr('text-anchor', 'end').text((t) => nf.format(t));
+
+    const stack = d3.stack().keys(used)(data);
+    svg.append('g').selectAll('g').data(stack).join('g').attr('fill', (s) => color(s.key))
+      .selectAll('rect').data((s) => s).join('rect')
+      .attr('x', (d) => x(d.data.key)).attr('width', x.bandwidth())
+      .attr('y', (d) => y(d[1])).attr('height', (d) => Math.max(0, y(d[0]) - y(d[1])));
+
+    const labelW = measure(svg, data.map((d) => (multi ? d.ano + ' S' + d.sem : 'S' + d.sem))) + 8;
+    const every = Math.max(1, Math.ceil(labelW / x.step()));
+    svg.append('g').selectAll('text').data(data.filter((d, i) => i % every === 0)).join('text')
+      .attr('x', (d) => x(d.key) + x.bandwidth() / 2).attr('y', H - 8).attr('text-anchor', 'middle')
+      .text((d) => (multi && (d.sem === 1 || d === data[0]) ? d.ano + ' S' + d.sem : 'S' + d.sem));
+
+    svg.append('g').selectAll('rect').data(data).join('rect')
+      .attr('x', (d) => x(d.key) - (x.step() - x.bandwidth()) / 2).attr('width', x.step())
+      .attr('y', mt).attr('height', H - mt - mb).attr('fill', 'transparent')
+      .on('mousemove', (evt, d) => showTip(card, [head(wkLabel(d, multi)), ...used.map((g) => line(g, nf.format(d[g]), color(g))), line('Total', nf.format(d.total))], evt))
+      .on('mouseleave', () => hideTip(card));
+  }
+
+  function drawPerfil() {
+    const el = $('perfil-list');
+    const counts = d3.rollups(filtered, (v) => v.length, (r) => r[ui.dim] || 'NÃO INFORMADO').sort((a, b) => b[1] - a[1]);
+    const tot = d3.sum(counts, (d) => d[1]);
+    const shown = counts.filter(([k]) => !(ui.semNI && NI.test(k)));
+    const top = shown.slice(0, 12);
+    const max = top.length ? top[0][1] : 1;
+    const clickable = ui.dim === 'TIPO_CRIME';
+    $('perfil-note').textContent = 'As 12 categorias mais frequentes, com a parcela de cada uma no total filtrado.' + (clickable ? ' Clique num tipo de crime para filtrar o painel por ele.' : '');
+    const nodes = top.map(([k, n]) => {
+      const row = document.createElement(clickable ? 'button' : 'div');
+      row.className = 'pc-rk-row';
+      if (clickable) { row.type = 'button'; row.addEventListener('click', () => set('tipo', k)); }
+      const lb = document.createElement('span'); lb.className = 'pc-rk-lb'; lb.textContent = ui.dim === 'BAIRRO' ? title(k) : sent(k);
+      const tr = document.createElement('span'); tr.className = 'pc-rk-track';
+      const bar = document.createElement('span'); bar.className = 'pc-rk-bar'; bar.style.display = 'block'; bar.style.width = (100 * n / max) + '%'; if (k === top[0][0]) bar.style.background = dash.colors[0]; tr.append(bar);
+      const v = document.createElement('span'); v.className = 'pc-rk-v'; v.textContent = nf.format(n) + ' · ' + pf(n / tot);
+      row.append(lb, tr, v);
+      return row;
+    });
+    if (shown.length > 12) { const m = document.createElement('span'); m.className = 'pc-more'; m.textContent = 'Mais ' + nf.format(shown.length - 12) + ' categorias com menos casos.'; nodes.push(m); }
+    if (!nodes.length) { const m = document.createElement('span'); m.className = 'pc-more'; m.textContent = 'Nenhum BO no recorte filtrado.'; nodes.push(m); }
+    el.replaceChildren(...nodes);
+  }
+
+  function drawHeat() {
+    const el = $('horario-chart'), card = $('horario');
+    const W = el.clientWidth; if (!W) return;
+    const grid = ORDEM.map((d) => Array.from({ length: 24 }, (_, h) => ({ d, h, n: 0 })));
+    let sem = 0;
+    filtered.forEach((r) => { if (r.dow == null || r.hora == null || isNaN(r.hora)) { sem++; return; } grid[ORDEM.indexOf(r.dow)][r.hora].n++; });
+    const cells = grid.flat();
+    const max = d3.max(cells, (c) => c.n) || 1;
+    el.replaceChildren();
+    const svg0 = d3.select(el).append('svg').attr('width', '100%');
+    const ml = Math.ceil(measure(svg0, DIAS)) + 10;
+    const cw = (W - ml - 2) / 24;
+    const ch = Math.max(16, Math.min(30, cw * 1.1));
+    const H = ch * 7 + 24;
+    const svg = svg0.attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'BOs por dia da semana e hora');
+    svg.append('g').selectAll('text').data(ORDEM).join('text').attr('x', ml - 8).attr('y', (d, i) => i * ch + ch / 2).attr('dy', '0.32em').attr('text-anchor', 'end').text((d) => DIAS[d]);
+    const g = svg.append('g').selectAll('g').data(cells).join('g').attr('transform', (c) => `translate(${ml + c.h * cw},${ORDEM.indexOf(c.d) * ch})`);
+    g.append('rect').attr('width', Math.max(1, cw - 2)).attr('height', ch - 2).attr('rx', 2).attr('fill', getComputedStyle(document.documentElement).getPropertyValue('--cds-chart-grid').trim());
+    g.append('rect').attr('width', Math.max(1, cw - 2)).attr('height', ch - 2).attr('rx', 2).attr('fill', dash.colors[0])
+      .attr('fill-opacity', (c) => (c.n ? 0.12 + 0.88 * Math.sqrt(c.n / max) : 0));
+    g.on('mousemove', (evt, c) => showTip(card, [head(DIAS[c.d] + ', ' + c.h + 'h às ' + c.h + 'h59'), line('BOs', nf.format(c.n))], evt)).on('mouseleave', () => hideTip(card));
+    const step = cw < 14 ? 6 : 3;
+    svg.append('g').selectAll('text').data(d3.range(0, 24, step)).join('text').attr('x', (h) => ml + h * cw + (cw - 2) / 2).attr('y', 7 * ch + 14).attr('text-anchor', 'middle').text((h) => h + 'h');
+  }
+
+  const FAIXAS = [[0, 6, 'madrugada (0h às 6h)'], [6, 12, 'manhã (6h às 12h)'], [12, 18, 'tarde (12h às 18h)'], [18, 24, 'noite (18h às 24h)']];
+  const DIAS_LONGOS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+  const topOf = (v, f, n) => d3.rollups(v.filter((r) => r[f] && !NI.test(r[f])), (x) => x.length, (r) => r[f]).sort((a, b) => b[1] - a[1]).slice(0, n);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  function logrDetail(k, v) {
+    const n = v.length;
+    const box = el('div');
+    const tipo = topOf(v, 'TIPO_CRIME', 1)[0];
+    const modus = topOf(v, 'MODUS', 1)[0];
+    const faixa = d3.greatest(FAIXAS.map(([a, b, t]) => [t, v.filter((r) => r.hora != null && r.hora >= a && r.hora < b).length]), (d) => d[1]);
+    let lead = n + (n === 1 ? ' BO' : ' BOs') + ' neste endereço no recorte filtrado.';
+    if (tipo) lead += ' O mais frequente é ' + sent(tipo[0]).toLowerCase() + ' (' + pf(tipo[1] / n) + ' dos casos)';
+    if (tipo && modus) lead += ', e a forma mais comum é ' + modus[0].toLowerCase() + ' (' + pf(modus[1] / n) + ')';
+    if (tipo) lead += '.';
+    if (faixa && faixa[1]) lead += ' A maior parte acontece de ' + faixa[0].replace(' (', ', ').replace(')', '') + '.';
+    box.append(el('p', 'pc-det-lead', lead));
+
+    const nat = CLASSES.map((c) => [c, v.filter((r) => r.nat === c).length]).filter((d) => d[1]);
+    const ncol = (c) => (c === 'Outros' ? getComputedStyle(document.documentElement).getPropertyValue('--cds-chart-muted').trim() : dash.colors[CLASSES.indexOf(c)]);
+    const bar = el('div', 'pc-det-nat'), leg = el('div', 'pc-det-natleg');
+    nat.forEach(([c, m]) => {
+      const seg = el('span'); seg.style.width = (100 * m / n) + '%'; seg.style.background = ncol(c); bar.append(seg);
+      const l = el('span'); const sw = el('i', 'pc-sw'); sw.style.background = ncol(c); l.append(sw, document.createTextNode(c + ' ' + pf(m / n))); leg.append(l);
+    });
+    box.append(bar, leg);
+
+    const grid = el('div', 'pc-det-grid');
+    const block = (titulo, pares, fmt) => {
+      const b = el('div'); b.append(el('h3', null, titulo));
+      if (!pares.length) { b.append(el('span', 'pc-more', 'Sem informação')); grid.append(b); return; }
+      const ol = el('ol');
+      pares.forEach(([t, m]) => { const li = el('li', null, (fmt || sent)(t) + ' '); li.append(el('span', null, nf.format(m) + ' · ' + pf(m / n))); ol.append(li); });
+      b.append(ol); grid.append(b);
+    };
+    block('Tipos de crime', topOf(v, 'TIPO_CRIME', 3));
+    block('Como acontece', topOf(v, 'MODUS', 3));
+    block('O que é levado', topOf(v, 'OBJETO', 3));
+    const horas = FAIXAS.map(([a, b, t]) => [t, v.filter((r) => r.hora != null && r.hora >= a && r.hora < b).length]).filter((d) => d[1]).sort((a, b) => b[1] - a[1]);
+    const dias = d3.rollups(v.filter((r) => r.dow != null), (x) => x.length, (r) => r.dow).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([d, m]) => [DIAS_LONGOS[d], m]);
+    block('Quando', [...horas.slice(0, 2), ...dias], (t) => t.charAt(0).toUpperCase() + t.slice(1));
+    box.append(grid);
+
+    const act = el('div', 'pc-det-act');
+    const btn = el('button', 'pc-btn', 'Ver estes BOs na lista');
+    btn.type = 'button';
+    btn.addEventListener('click', () => { const b = $('busca'); b.value = k; ui.busca = k; drawTable(); $('lista').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    act.append(btn); box.append(act);
+    return box;
+  }
+
+  function drawLogr() {
+    const tb = $('logr-tbl').querySelector('tbody');
+    const groups = d3.groups(filtered.filter((r) => r.LOGRADOURO), (r) => r.LOGRADOURO)
+      .map(([k, v]) => ({ k, v, n: v.length, roubo: v.filter((r) => r.nat === 'Roubo').length / v.length, bairro: d3.greatest(d3.rollups(v, (x) => x.length, (r) => r.BAIRRO), (d) => d[1])[0] }))
+      .sort((a, b) => b.n - a.n).slice(0, 15);
+    if (ui.logr && !groups.some((d) => d.k === ui.logr)) ui.logr = null;
+    const out = [];
+    groups.forEach((d) => {
+      const open = ui.logr === d.k;
+      const tr = el('tr', 'pc-lg-row' + (open ? ' open' : ''));
+      const td0 = el('td'); const b = el('button', 'pc-lg-btn', title(d.k)); b.type = 'button'; b.setAttribute('aria-expanded', String(open)); td0.append(b); tr.append(td0);
+      [[title(d.bairro)], [nf.format(d.n), 'n'], [pf(d.roubo), 'n']].forEach(([t, c]) => tr.append(el('td', c, t)));
+      tr.addEventListener('click', () => { ui.logr = open ? null : d.k; drawLogr(); });
+      out.push(tr);
+      if (open) { const dt = el('tr', 'pc-det'); const td = el('td'); td.colSpan = 4; td.append(logrDetail(d.k, d.v)); dt.append(td); out.push(dt); }
+    });
+    tb.replaceChildren(...out);
+  }
+
+  function drawTable() {
+    const tb = $('bo-tbl').querySelector('tbody');
+    const q = ui.busca.trim().toUpperCase();
+    const cols = ['DATA', 'NUM_BO', 'DP', 'CLASSIFICACAO', 'TIPO_CRIME', 'OBJETO', 'LOGRADOURO', 'BAIRRO'];
+    let rows = q ? filtered.filter((r) => cols.some((c) => (r[c] || '').toUpperCase().includes(q))) : filtered.slice();
+    const k = ui.sortKey, dir = ui.sortDir;
+    rows.sort((a, b) => dir * String(a[k] || '').localeCompare(String(b[k] || ''), 'pt-BR'));
+    const LIM = 400;
+    $('lista-count').textContent = rows.length > LIM ? 'Mostrando ' + nf.format(LIM) + ' de ' + nf.format(rows.length) + ' BOs. Use a busca ou os filtros para achar os outros.' : nf.format(rows.length) + ' BOs';
+    tb.replaceChildren(...rows.slice(0, LIM).map((r) => {
+      const tr = document.createElement('tr'); tr.dataset.key = r.ID;
+      cols.forEach((c) => { const td = document.createElement('td'); td.textContent = r[c] == null ? '' : r[c]; tr.append(td); });
+      return tr;
+    }));
+  }
+
+  dash.onData(draw);
+})();
+</script>
+</body>
+</html>
