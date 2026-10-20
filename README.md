@@ -7,14 +7,19 @@ Painel interativo com os boletins de ocorrência (BOs) semanais do Projeto Centr
 | Arquivo | Para que serve |
 |---|---|
 | `index.html` | O painel. É a página que o GitHub Pages publica. |
-| `dados/base_2024.csv` | A base consolidada: um BO por linha. |
+| `dados/base_2024.js` | A base que o painel lê (mesmo conteúdo do CSV). |
+| `dados/base_2024.csv` | A base consolidada, um BO por linha, para abrir no Excel, R ou Stata. |
 | `consolidar_boletins.py` | Script que transforma as planilhas semanais (.xlsx) de um ano num CSV. |
+
+## Para ver no seu computador
+
+Descompacte o zip e abra o `index.html` com dois cliques. A pasta `dados` precisa ficar ao lado dele.
 
 ## Como publicar no GitHub Pages (sem usar linha de comando)
 
 1. Crie uma conta em https://github.com (se ainda não tiver).
 2. Clique em **New repository**. Dê um nome, por exemplo `painel-projeto-centro`, marque **Public** e clique em **Create repository**.
-3. Na página do repositório, clique em **uploading an existing file**. Arraste o `index.html`, o `README.md`, o `consolidar_boletins.py` e a pasta `dados` inteira. Clique em **Commit changes**.
+3. Na página do repositório, clique em **uploading an existing file**. Arraste o `index.html`, o `README.md`, o `consolidar_boletins.py` e a pasta `dados` inteira. Depois do envio, confira se a pasta `dados` aparece na lista de arquivos do repositório. Se não aparecer, clique em **Add file → Upload files** e arraste a pasta de novo. Clique em **Commit changes**.
 4. Vá em **Settings → Pages**. Em **Branch**, escolha `main` e a pasta `/ (root)`. Clique em **Save**.
 5. Em 1 ou 2 minutos, o painel fica no ar em `https://SEU-USUARIO.github.io/painel-projeto-centro/`.
 
@@ -35,15 +40,15 @@ O Google costuma achar sozinho as páginas do GitHub Pages, mas isso pode levar 
    ```
    python consolidar_boletins.py boletins/2023 2023 base_2023.csv
    ```
-   O script avisa quando uma planilha tem colunas deslocadas e as corrige (como aconteceu na semana 6 de 2024).
-4. Suba o CSV novo na pasta `dados` do repositório.
+   O script gera dois arquivos, `base_2023.csv` e `base_2023.js`, e avisa quando uma planilha tem colunas deslocadas e as corrige (como aconteceu na semana 6 de 2024).
+4. Suba os dois arquivos novos (.csv e .js) na pasta `dados` do repositório.
 5. No `index.html`, procure a linha
    ```
-   const ARQUIVOS = ['dados/base_2024.csv'];
+   const ARQUIVOS = ['dados/base_2024.js'];
    ```
    e acrescente o arquivo novo:
    ```
-   const ARQUIVOS = ['dados/base_2023.csv', 'dados/base_2024.csv'];
+   const ARQUIVOS = ['dados/base_2023.js', 'dados/base_2024.js'];
    ```
    Pelo GitHub, dá para editar direto no site: abra o arquivo e clique no lápis. O filtro **Ano** passa a mostrar os anos novos automaticamente.
 

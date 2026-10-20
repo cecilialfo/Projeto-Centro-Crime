@@ -244,8 +244,8 @@ button.pc-rk-row:hover .pc-rk-bar { opacity: .8; }
 
 </main>
 <script>
-// ====== Lista de bases. Para incluir outro ano: coloque o CSV na pasta "dados" e acrescente o nome aqui. ======
-const ARQUIVOS = ['dados/base_2024.csv'];
+// ====== Lista de bases. Para incluir outro ano: coloque o arquivo .js gerado pelo script na pasta "dados" e acrescente o nome aqui. ======
+const ARQUIVOS = ['dados/base_2024.js'];
 
 window.dash = (() => {
   const DEFAULTS = { ano: null, dp: null, classif: null, tipo: null, de: null, ate: null };
@@ -254,9 +254,18 @@ window.dash = (() => {
   const run = () => fns.forEach((f) => f());
   let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(run, 150); });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', run);
-  Promise.all(ARQUIVOS.map((f) => d3.csv(f)))
-    .then((partes) => { state = { status: 'ok', data: partes.flat() }; run(); })
-    .catch(() => { state = { status: 'error', data: [] }; run(); });
+  // Cada arquivo de dados chama registrarBase("<texto CSV>"). Carregar por <script> funciona
+  // tanto no GitHub Pages quanto abrindo o index.html direto do computador.
+  const partes = [];
+  window.registrarBase = (csv) => partes.push(d3.csvParse(csv));
+  const carregar = (f) => new Promise((ok, erro) => {
+    const el = document.createElement('script');
+    el.src = f; el.onload = ok; el.onerror = () => erro(f);
+    document.head.append(el);
+  });
+  Promise.all(ARQUIVOS.map(carregar))
+    .then(() => { state = { status: 'ok', data: partes.flat() }; run(); })
+    .catch((f) => { state = { status: 'error', data: [], arquivo: f }; run(); });
   return {
     get colors() { const cs = getComputedStyle(document.documentElement); return ['--s1', '--s2', '--s3', '--s4'].map((v) => cs.getPropertyValue(v).trim()); },
     data: () => state,
@@ -359,7 +368,7 @@ window.dash = (() => {
 
   // ---------- estado ----------
   let filtered = [], weeks = [];
-  const failEl = (el) => { el.replaceChildren(); const d = document.createElement('div'); d.className = 'pc-fail'; d.textContent = 'Não carregou'; el.append(d); };
+  const failEl = (el) => { el.replaceChildren(); const d = document.createElement('div'); d.className = 'pc-fail'; const a = dash.data('bos').arquivo; d.textContent = a ? 'Não encontrei o arquivo ' + a + '. Confira se a pasta dados foi enviada junto com o index.html.' : 'Não carregou'; el.append(d); };
 
   function draw() {
     const res = dash.data('bos');

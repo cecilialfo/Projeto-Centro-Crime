@@ -1,6 +1,7 @@
 """Consolida as planilhas semanais do Projeto Centro numa base única (CSV).
-Uso: python consolidar.py <pasta_com_xlsx_de_um_ano> <ano> <saida.csv>
-Ex.:  python consolidar.py boletins/2024 2024 base_2024.csv
+Uso: python consolidar_boletins.py <pasta_com_xlsx_de_um_ano> <ano> <saida.csv>
+Ex.:  python consolidar_boletins.py boletins/2024 2024 base_2024.csv
+Gera base_2024.csv (para análise) e base_2024.js (o arquivo que o painel lê).
 """
 import openpyxl, glob, re, sys, unicodedata, pandas as pd
 src, ANO, out = sys.argv[1], int(sys.argv[2]), sys.argv[3]
@@ -104,4 +105,9 @@ d['ID'] = d['ANO'].astype(str) + '-' + d['SEMANA'].astype(str).str.zfill(2) + '-
 cols = ['ID','ANO','SEMANA','SEMANA_INICIO','SEMANA_FIM','NUM_BO','DP','DATA','HORA','CLASSIFICACAO','RUBRICA','TIPO_CRIME','MODUS','MEIO',
         'LOCAL_SUBTRACAO','OBJETO','TIPO_LOCAL','APRESENTACAO','BAIRRO','LOGRADOURO','LATITUDE','LONGITUDE']
 d[cols].to_csv(out, index=False)
-print(d.shape)
+# Versão .js da mesma base: é a que o painel (index.html) carrega.
+import json, os
+js = os.path.splitext(out)[0] + '.js'
+with open(js, 'w', encoding='utf-8') as fh:
+    fh.write('registrarBase(' + json.dumps(d[cols].to_csv(index=False), ensure_ascii=False) + ');\n')
+print(d.shape, '->', out, 'e', js)
